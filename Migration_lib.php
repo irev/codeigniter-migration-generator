@@ -262,7 +262,7 @@ class Migration_lib
     {
         $find = ['/(^\w+\(?)/', '/(\)$)/'];  // reg 'a(' or ')'
         $replace_type = preg_replace($find, '', $string); /// replace first string of type ex set('es','ea') or enum('1','11')
-        return $replace_type; 
+        return $replace_type;
     }
 
     /**
@@ -304,14 +304,19 @@ class Migration_lib
             $add_field_str .= "\t\t\t'{$column['Field']}' => array(" . "\n";
 
             preg_match('/^(\w+)\(([\d]+(?:,[\d]+)*)\)/', $column['Type'], $match);
-            
+
             if ($match === []) {
                 preg_match('/^(\w+)/', $column['Type'], $match);
             }
 
             $add_field_str .= "\t\t\t\t'type' => '" . strtoupper($match[1]) . "'," . "\n";
-            
-            if (!isset($match[2])) {
+
+            //FIXES
+            if (isset($match[2])) {
+                if (is_numeric($match[2])) {
+                    $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($match[2]) . "'," . "\n";
+                }
+            } else {
                 switch (strtoupper($match[0])) {
                         //type enum need extra handle
                     case 'ENUM':
@@ -320,14 +325,8 @@ class Migration_lib
                     case 'SET':
                         $add_field_str .= "\t\t\t\t'constraint' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
                         break;
-                    default:                        
-                        $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($column['Type']) . "'," . "\n";
+                    default:
                         break;
-                }
-            }else{
-                /// constraint is number 
-                if(is_numeric($match[2])){
-                    $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($match[2]) . "'," . "\n";
                 }
             }
 
@@ -344,6 +343,19 @@ class Migration_lib
             if ($column['Key'] == 'PRI') {
                 $add_key_str .= "\t\t" . '$this->dbforge->add_key("' . $column['Field'] . '", TRUE);' . "\n";
             }
+        }
+        if (strtoupper($column['Field']) != 'create_at') {
+            $add_field_str .= "\t\t\t 'create_at' => array(" . "\n";
+            $add_field_str .= "\t\t\t\t'type' => 'DATETIME'," . "\n";
+            $add_field_str .= "\t\t\t\t'default' => 'CURRENT_TIMESTAMP'," . "\n";
+            $add_field_str .= "\t\t\t)," . "\n";
+        }
+        if (strtoupper($column['Field']) != 'update_at') {
+            $add_field_str .= "\t\t\t 'update_at' => array(" . "\n";
+            $add_field_str .= "\t\t\t\t'type' => 'DATETIME'," . "\n";
+            $add_field_str .= "\t\t\t\t'default' => 'CURRENT_TIMESTAMP'," . "\n";
+            $add_field_str .= "\t\t\t\t'attributes' => 'on update CURRENT_TIMESTAMP'" . "\n";
+            $add_field_str .= "\t\t\t)" . "\n";
         }
 
         $add_field_str .= "\t\t));" . "\n";
