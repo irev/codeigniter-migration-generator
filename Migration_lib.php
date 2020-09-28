@@ -247,18 +247,22 @@ class Migration_lib
     }
 
     /**
-     * Method _extra_enum_set_handle
+     * Method project_name
      *
-     * @param $string $string [explicite description]
-     *
-     * @return String
+     * @param $name 
+     * @return string
      */
-    ///TODO: To handling type 'enum' and 'set'  
+    public function project_name($name = null)
+    {
+        return $this->project_name = $name;
+    }
+
+    ///TODO: To handling type 'enum' and 'set' 
     public function _extra_enum_set_handle($string = null)
     {
         $find = ['/(^\w+\(?)/', '/(\)$)/'];  // reg 'a(' or ')'
         $replace_type = preg_replace($find, '', $string); /// replace first string of type ex set('es','ea') or enum('1','11')
-        return $replace_type;
+        return $replace_type; 
     }
 
     /**
@@ -271,6 +275,9 @@ class Migration_lib
     public function get_function_up_content($table_name)
     {
         $str = "\n\t" . '/**' . "\n";
+        $str .= "\t" . ' * Codeigniter-migration-generator ' . "\n";
+        $str .= "\t" . ' * Database Name: ' . $this->_db_name . "\n";
+        $str .= "\t" . ' * create_at: ' . date('d M Y') . "\n";
         $str .= "\t" . ' * up (create table)' . "\n";
         $str .= "\t" . ' *' . "\n";
         $str .= "\t" . ' * @return void' . "\n";
@@ -297,26 +304,30 @@ class Migration_lib
             $add_field_str .= "\t\t\t'{$column['Field']}' => array(" . "\n";
 
             preg_match('/^(\w+)\(([\d]+(?:,[\d]+)*)\)/', $column['Type'], $match);
-
+            
             if ($match === []) {
                 preg_match('/^(\w+)/', $column['Type'], $match);
             }
 
             $add_field_str .= "\t\t\t\t'type' => '" . strtoupper($match[1]) . "'," . "\n";
-
+            
             if (!isset($match[2])) {
                 switch (strtoupper($match[0])) {
                         //type enum need extra handle
                     case 'ENUM':
                         $add_field_str .= "\t\t\t\t'constraint' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
                         break;
-                    // Add SET type
                     case 'SET':
-                        $add_field_str .= "\t\t\t\t'constraint " . strtoupper($match[0]) . "' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
+                        $add_field_str .= "\t\t\t\t'constraint' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
                         break;
-                    default:
+                    default:                        
                         $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($column['Type']) . "'," . "\n";
                         break;
+                }
+            }else{
+                /// constraint not number 
+                if(is_numeric($match[2])){
+                    $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($match[2]) . "'," . "\n";
                 }
             }
 
