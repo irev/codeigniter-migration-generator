@@ -325,7 +325,7 @@ class Migration_lib
                         break;
                 }
             }else{
-                /// constraint not number 
+                /// constraint is number 
                 if(is_numeric($match[2])){
                     $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($match[2]) . "'," . "\n";
                 }
