@@ -47,6 +47,10 @@ class Migration_lib
      */
     private $_db_name = '';
 
+    /**
+     * @var string project name as commant on top 
+     */
+    public $project_name = 'My Project';
 
     /**
      * Migration_lib constructor.
@@ -54,15 +58,16 @@ class Migration_lib
     public function __construct()
     {
         // Get Codeigniter Object
-        if( ! isset($this->_ci))
-        {
-            $this->_ci =& get_instance();
+        if (!isset($this->_ci)) {
+            $this->_ci = &get_instance();
         }
 
         $this->path = APPPATH . $this->_migration_folder_name;
 
         $this->_ci->load->database();
     }
+
+
 
     /**
      * Generate Migrations Files
@@ -74,8 +79,7 @@ class Migration_lib
     public function generate($tables = '*')
     {
         // check tables not empty
-        if(empty($tables))
-        {
+        if (empty($tables)) {
             echo 'InvalidParameter::tables';
             return FALSE;
         }
@@ -83,33 +87,27 @@ class Migration_lib
         // get database name
         $this->_db_name = $this->_ci->db->database;
 
-        if ($tables === '*')
-        {
+        if ($tables === '*') {
             $query = $this->_ci->db->query('SHOW FULL TABLES FROM ' . $this->_ci->db->protect_identifiers($this->_db_name));
 
             // collect tables of migration
             $migration_table_set = array();
 
             // confirm table num
-            if ($query->num_rows() > 0)
-            {
+            if ($query->num_rows() > 0) {
                 $table_name_key = "Tables_in_{$this->_db_name}";
 
-                foreach ($query->result_array() as $table_info)
-                {
-                    if (isset($table_info[$table_name_key]) && $table_info[$table_name_key] !== '')
-                    {
+                foreach ($query->result_array() as $table_info) {
+                    if (isset($table_info[$table_name_key]) && $table_info[$table_name_key] !== '') {
                         $table_name = $table_info[$table_name_key];
 
                         // check if table in skip arrays, if so, go next
-                        if (in_array($table_info[$table_name_key], $this->skip_tables))
-                        {
+                        if (in_array($table_info[$table_name_key], $this->skip_tables)) {
                             continue;
                         }
 
                         // skip views
-                        if (strtolower($table_info['Table_type']) == 'view')
-                        {
+                        if (strtolower($table_info['Table_type']) == 'view') {
                             continue;
                         }
 
@@ -118,28 +116,22 @@ class Migration_lib
                 }
             }
 
-            if($this->_ci->db->dbprefix($this->_db_name) !== '')
-            {
+            if ($this->_ci->db->dbprefix($this->_db_name) !== '') {
                 array_walk($migration_table_set, [$this, '_remove_database_prefix']);
             }
 
             $this->migration_table_set = $migration_table_set;
-        }
-        else
-        {
+        } else {
             $this->migration_table_set = is_array($tables) ? $tables : explode(',', $tables);
         }
 
 
-        if( ! empty($this->migration_table_set))
-        {
+        if (!empty($this->migration_table_set)) {
             // create migration file or override it.
-            foreach ($this->migration_table_set as $table_name)
-            {
+            foreach ($this->migration_table_set as $table_name) {
                 $file_content = $this->get_file_content($table_name);
 
-                if(! empty($file_content))
-                {
+                if (!empty($file_content)) {
                     $this->write_file($table_name, $file_content);
                     continue;
                 }
@@ -147,9 +139,7 @@ class Migration_lib
 
             echo "Create migration success!";
             return TRUE;
-        }
-        else
-        {
+        } else {
             echo "Empty table set!";
             return FALSE;
         }
@@ -217,15 +207,14 @@ class Migration_lib
     {
         $timestamp = $this->_get_timestamp($table_name);
 
-        $file_path = $this->path . '/' . $timestamp .'_create_' . $table_name . '.php';
+        $file_path = $this->path . '/' . $timestamp . '_create_' . $table_name . '.php';
 
         // Open for reading and writing.
         // Place the file pointer at the beginning of the file and truncate the file to zero length.
         // If the file does not exist, attempt to create it.
         $file = fopen($file_path, 'w+');
 
-        if ( ! $file)
-        {
+        if (!$file) {
             return FALSE;
         }
 
@@ -244,18 +233,32 @@ class Migration_lib
     private function _get_timestamp($table_name)
     {
         // get timestamp
-        $query = $this->_ci->db->query(' SHOW TABLE STATUS WHERE Name = \'' . $table_name .'\'');
+        $query = $this->_ci->db->query(' SHOW TABLE STATUS WHERE Name = \'' . $table_name . '\'');
 
         $engines = $query->row_array();
 
         $timestamp = date('YmdHis', strtotime($engines['Create_time']));
 
-        while(in_array($timestamp, $this->_timestamp_set))
-        {
+        while (in_array($timestamp, $this->_timestamp_set)) {
             $timestamp += 1;
         }
 
         return $timestamp;
+    }
+
+    /**
+     * Method _extra_enum_set_handle
+     *
+     * @param $string $string [explicite description]
+     *
+     * @return String
+     */
+    ///TODO: To handling type 'enum' and 'set'  
+    public function _extra_enum_set_handle($string = null)
+    {
+        $find = ['/(^\w+\(?)/', '/(\)$)/'];  // reg 'a(' or ')'
+        $replace_type = preg_replace($find, '', $string); /// replace first string of type ex set('es','ea') or enum('1','11')
+        return $replace_type;
     }
 
     /**
@@ -279,42 +282,43 @@ class Migration_lib
         $query = $this->_ci->db->query("SHOW FULL FIELDS FROM {$this->_ci->db->dbprefix($table_name)} FROM {$this->_db_name}");
 
         // 如果没有结果，直接返回
-        if ($query->result() === NULL)
-        {
+        if ($query->result() === NULL) {
             return FALSE;
         }
 
-        $columns = $query->result_array();//获取列数据
+        $columns = $query->result_array(); //获取列数据
 
         $add_key_str = '';
 
         $add_field_str = "\t\t" . '$this->dbforge->add_field(array(' . "\n";
 
-        foreach ($columns as $column)
-        {
+        foreach ($columns as $column) {
             // field name
             $add_field_str .= "\t\t\t'{$column['Field']}' => array(" . "\n";
 
             preg_match('/^(\w+)\(([\d]+(?:,[\d]+)*)\)/', $column['Type'], $match);
+            echo strtoupper('<br>' . $column['Type']) . "\r";
+            print_r($match);
 
-            if($match === [])
-            {
+            if ($match === []) {
                 preg_match('/^(\w+)/', $column['Type'], $match);
+                print_r($match);
             }
 
             $add_field_str .= "\t\t\t\t'type' => '" . strtoupper($match[1]) . "'," . "\n";
 
-            if(isset($match[2]))
-            {
-                switch (strtoupper($match[1]))
-                {
-                    //type enum need extra handle
+            if (!isset($match[2])) {
+                switch (strtoupper($match[0])) {
+                        //type enum need extra handle
                     case 'ENUM':
-                        $enum_constraint_str = str_replace(',', ', ', $match[2]);
-                        $add_field_str .= "\t\t\t\t'constraint' => [" . $enum_constraint_str . "],\n";
+                        $add_field_str .= "\t\t\t\t'constraint' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
+                        break;
+                    // Add SET type
+                    case 'SET':
+                        $add_field_str .= "\t\t\t\t'constraint " . strtoupper($match[0]) . "' => [" . $this->_extra_enum_set_handle($column['Type']) . "],\n";
                         break;
                     default:
-                        $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($match[2]) . "'," . "\n";
+                        $add_field_str .= "\t\t\t\t'constraint' => '" . strtoupper($column['Type']) . "'," . "\n";
                         break;
                 }
             }
@@ -329,8 +333,7 @@ class Migration_lib
 
             $add_field_str .= "\t\t\t)," . "\n";
 
-            if ($column['Key'] == 'PRI')
-            {
+            if ($column['Key'] == 'PRI') {
                 $add_key_str .= "\t\t" . '$this->dbforge->add_key("' . $column['Field'] . '", TRUE);' . "\n";
             }
         }
